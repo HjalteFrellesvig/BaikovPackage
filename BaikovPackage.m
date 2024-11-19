@@ -1,4 +1,4 @@
-(*This is version 4.02 of BaikovPackage. Last edited on the 12th of October 2024*)
+(*This is version 4.03 of BaikovPackage. Last edited on the 19th of November 2024*)
 
 BeginPackage[ "BaikovPackage`"]
 
@@ -6,9 +6,9 @@ BaikovStandard::usage = "BaikovStandard[] computes the ingredients for a standar
 
 BaikovLBL::usage = "BaikovLBL[] computes the ingredients for a loop-by-loop Baikov parametrization.";
     
-BaikovCombine::usage = "BaikovCombine[comb] computes a Baikov parametrization given ingredients comb.";
+BaikovCombine::usage = "BaikovCombine[comp] computes a Baikov parametrization given ingredients comp.";
 
-MakeExtraDPRules::usage = "MakeExtraDPRules[comb, n] computes rules for extra dot-products up to tensor-degree n, given ingredients comb.";
+MakeExtraDPRules::usage = "MakeExtraDPRules[comp, n] computes rules for extra dot-products up to tensor-degree n, given ingredients comp.";
   
 SetBPprint::usage = "Sets the value of the debug-variable BPprint.";
 GetBPprint::usage = "Returns the value of the debug-variable BPprint.";
