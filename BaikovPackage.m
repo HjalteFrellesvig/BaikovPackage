@@ -1,4 +1,4 @@
-(*This is version 4.0 of BaikovPackage. Last edited on the 26th of August 2024*)
+(*This is version 4.02 of BaikovPackage. Last edited on the 12th of October 2024*)
 
 BeginPackage[ "BaikovPackage`"]
 
@@ -6,7 +6,9 @@ BaikovStandard::usage = "BaikovStandard[] computes the ingredients for a standar
 
 BaikovLBL::usage = "BaikovLBL[] computes the ingredients for a loop-by-loop Baikov parametrization.";
     
-BaikovCombine::usage = "BaikovCombine[x] computes a Baikov parametrization given ingredients x.";
+BaikovCombine::usage = "BaikovCombine[comb] computes a Baikov parametrization given ingredients comb.";
+
+MakeExtraDPRules::usage = "MakeExtraDPRules[comb, n] computes rules for extra dot-products up to tensor-degree n, given ingredients comb.";
   
 SetBPprint::usage = "Sets the value of the debug-variable BPprint.";
 GetBPprint::usage = "Returns the value of the debug-variable BPprint.";
@@ -22,7 +24,7 @@ PropagatorsExtra::usage = "PropagatorsExtra is the list of additional propagator
 Replacements::usage = "Replacements is the list of kinematic replacement rules.";
   
 x::usage = "x is a variable reserved for Baikov variables.";   
-d::usage = "d is a variable reserved for the spacetime dimentionality.";   
+d::usage = "d is a variable reserved for the spacetime dimensionality.";   
 DP::usage = "DP is a variable reserved for dotproducts.";
 DPx::usage = "DPx is a variable reserved for dotproducts when used as integration variables.";
 
@@ -78,7 +80,7 @@ MakeDPRules = Function[{ks, ps},
     
     
 BaikovLBL = Function[{},
-  Module[{AllPropagators, PP, RInternal, LL, dprules, bigdplist, whogoeswhere, useddplist, bigjacdet, bigdetlist, bigpowlist, prefaclist, bigxrules, bigelist, result, props, jlist, kk, qq, gg, ktoq, EE, curdplist, propsexpanded, linear1, zpos, gsol, zpos2, qtok, linear2, xlhs, xeqs, toxrules, solveddps, linear3, curfacpows, curfac, cc1, cc2, cc3, cc4, jacmat1, jacmat2, grammat, baikmat, linear4, gramdet, baikdet, jacdet1, jacdet2, gp1, gp2, bigxrulesfinal, bfrfrhs, endlabel, fromxrules, DPxlist, qqofk, DPxrhs, DPxdpl, DPxsol},
+  Module[{AllPropagators, PP, RInternal, LL, dprules, bigdplist, whogoeswhere, useddplist, bigjacdet, bigdetlist, bigpowlist, prefaclist, bigxrules, bigelist, result, props, jlist, kk, qq, gg, ktoq, EE, curdplist, propsexpanded, linear1, zpos, gsol, zpos2, qtok, linear2, xlhs, xeqs, toxrules, solveddps, linear3, curfacpows, curfac, cc1, cc2, cc3, cc4, jacmat1, jacmat2, grammat, baikmat, linear4, gramdet, baikdet, jacdet1, jacdet2, gp1, gp2, bigxrulesfinal, bfrfrhs, endlabel, fromxrules, DPxlist, qqofk, DPxrhs, DPxdpl, DPxsol, DPxret},
 
   result = 0;
   LL = Length[Internal];
@@ -290,8 +292,14 @@ BaikovLBL = Function[{},
       Goto[endlabel];
     ];
     DPxsol = DPxsol[[1]];
-    fromxrules = Table[x[i] -> (Expand[AllPropagators[[i]]]/.dprules/.Replacements/.DPxsol), {i,Length[AllPropagators]}];
+    fromxrules = Table[x[i] -> Expand[Expand[AllPropagators[[i]]]/.dprules/.Replacements/.DPxsol], {i,Length[AllPropagators]}];
     bigdetlist = bigdetlist/.fromxrules;
+  ];
+  
+  If[BPDPresult,
+    DPxret = {DPxlist, fromxrules};
+    ,
+    DPxret = {DPxlist};
   ];
     
   bigdetlist = Map[Expand, bigdetlist];
@@ -299,17 +307,15 @@ BaikovLBL = Function[{},
   PRINT["bigdetlist = ", bigdetlist];
     
   AppendTo[prefaclist, bigjacdet];
-  
-  If[BPDPresult,
-    bigxrulesfinal = fromxrules,
-    
-    bfrfrhs = Map[#[[2]] &, bigxrules];
-    bfrfrhs = Expand[bfrfrhs //. bigxrules];
-    bigxrulesfinal = Table[bigxrules[[i, 1]] -> bfrfrhs[[i]], {i, Length[bfrfrhs]}];
-  ];
+
+  bfrfrhs = Map[#[[2]] &, bigxrules];
+  bfrfrhs = Expand[bfrfrhs //. bigxrules];
+  If[BPDPresult, bfrfrhs = Expand[bfrfrhs //. fromxrules]];
+  bigxrulesfinal = Table[bigxrules[[i, 1]] -> bfrfrhs[[i]], {i, Length[bfrfrhs]}];
+
   PRINT["bigxrulesfinal = ", bigxrulesfinal];
     
-  result = {bigdetlist, bigpowlist, prefaclist, {dprules, bigxrulesfinal, bigelist, DPxlist}};
+  result = {bigdetlist, bigpowlist, prefaclist, {dprules, bigxrulesfinal, bigelist, DPxret}};
   Label[endlabel];
   result]];
 
@@ -319,7 +325,7 @@ BaikovLBL = Function[{},
 
 
 BaikovStandard = Function[{},
-  Module[{RInternal, LL, EE, DPrules, AllPropagators, PP, PPexp, AllPropagatorsExpanded, DPRHS, ijacdet, ToBaik, curE, gram1, gp1, curexte, gram2, gp2, remdps, bigdetlist, bigpowlist, prefaclist, Elists, result, endlabel, fromxrules},
+  Module[{RInternal, LL, EE, DPrules, AllPropagators, PP, PPexp, AllPropagatorsExpanded, DPRHS, ijacdet, ToBaik, curE, gram1, gp1, curexte, gram2, gp2, remdps, bigdetlist, bigpowlist, prefaclist, Elists, result, endlabel, fromxrules, DPxret},
 
   result = 0;
   RInternal = Reverse[Internal];
@@ -372,12 +378,15 @@ BaikovStandard = Function[{},
   If[BPDPresult,
     fromxrules = Table[x[i] -> AllPropagatorsExpanded[[i]]/.{DP:>DPx} ,{i,PP}];
     bigdetlist = bigdetlist/.fromxrules;
-    ToBaik = fromxrules;
+    ToBaik = ToBaik/.fromxrules;
   ];
-    
+  
+  DPxret = {DPRHS/.{DP:>DPx}};
+  If[BPDPresult, AppendTo[DPxret, fromxrules]];
+  
   If[BPFactorFinal, bigdetlist = Factor[bigdetlist]];
     
-  result = {bigdetlist, bigpowlist, prefaclist, {DPrules, ToBaik, Reverse[Elists], DPRHS/.{DP:>DPx}}};
+  result = {bigdetlist, bigpowlist, prefaclist, {DPrules, ToBaik, Reverse[Elists], DPxret}};
   Label[endlabel];
   result]];
 
@@ -389,6 +398,212 @@ BaikovCombine = Function[{xx}, Module[{res},
     res *= xx[[1, i]]^xx[[2, i]];
     , {i, Length[xx[[1]]]}];
   res]];
+  
+  
+  
+
+MakeExtraDPRules = Function[{inm, nin},
+  Module[{resultrules, subresult, dpendlabel, murules, rul1, rul2, alldps, useddps, RInternal, kk, newcandi, pe1, pi1, pi2, allnewcandi, eta, temprules, tensorbasis, pebasis, pebasislist, peb, cfl, ansatz, alist, rhs, lhs,
+      eqs, rfl, minusrfl, curminusrfl, rfrules, rfrulesextra, eqssol, eqssolorig, resrhs, reslhs, lhsp, lhsk, rfrulesrev, rfrulesrevextra, ccou, currhs, resultrulespre (*,P,g,mu,a,BR,cc*) },
+      
+    resultrules = {};
+    If[Not[IntegerQ[nin]] || nin < 0,
+      Print["N has to be a positive integer"];
+      Goto[dpendlabel]];
+    If[nin >= 8,
+      Print["Not implemented for N>=8"];
+      Goto[dpendlabel]];
+    If[nin == 0,
+      Goto[dpendlabel]];
+    
+    subresult = Table[{}, {nin}];
+    
+    murules = {P[x1_, x3_]*P[x2_, x3_] :> BR[x1*x2], P[x1_, x3_]^2 :> BR[x1^2], P[x1_, x2_]*g[x3___, x2_, x4___] :> P[x1, x3, x4], 
+      g[x1___, x0_, x2___]*g[x3___, x0_, x4___] :> g[x1, x2, x3, x4], g[x1___, x0_, x2___]^2 :> g[x1, x2, x1, x2], g[x1_, x1_] :> d};
+    rul1 = inm[[4, 1]];
+    rul2 = inm[[4, 2]];
+    alldps = Table[rul1[[i, 2]], {i, Length[rul1]}];
+    useddps = Table[rul2[[i, 1]], {i, Length[rul2]}];
+    RInternal = Reverse[Internal];
+    allnewcandi = {};
+    temprules = {};
+    
+    (*This is the k-loop*)
+    Do[
+      kk = RInternal[[i]];
+      PRINT["k-loop: ", kk, " (", i, "/", Length[RInternal], ")"];
+      newcandi = Join[Table[kk*RInternal[[j]], {j, i, Length[RInternal]}], Table[kk*External[[j]], {j, 1, Length[External]}]] /. rul1;
+      newcandi = Complement[newcandi, useddps];
+      allnewcandi = Join[allnewcandi, newcandi];
+      If[Length[newcandi] > 0,
+        pe1 = newcandi /. {DP[kk, x1_] :> x1, DP[x1_, kk] :> x1};
+        pi1 = inm[[4, 3, Length[Internal] + 1 - i]];
+        pi2 = Append[Map[P[#, mu[0]] &, pi1], P[eta, mu[0]]] //. {P[x1_ + x2_, x0_] :> P[x1, x0] + P[x2, x0]};
+      
+        (*this is the n-loop*)
+        Do[
+          PRINT["  n-loop: ", n, "/", nin];
+          tensorbasis = {1};
+          pebasis = {1};
+          Do[
+            tensorbasis = Flatten[KroneckerProduct[tensorbasis, (pi2 /. {mu[0] -> mu[u]})]];
+            pebasis = Union[Flatten[KroneckerProduct[pebasis, pe1]]];
+            , {u, 1, n}];
+          pebasislist = {};
+          Do[
+            peb = {};
+            cfl = FactorList[pebasis[[j]]];
+            Do[
+              Do[
+                AppendTo[peb, cfl[[u, 1]]];
+              , {iii, cfl[[u, 2]]}];
+            , {u, 2, Length[cfl]}];
+            AppendTo[pebasislist, peb];
+          , {j, Length[pebasis]}];
+          If[n >= 6,
+            tensorbasis = tensorbasis /. {P[eta, x1_]*P[eta, x2_]*P[eta, x3_]*P[eta, x4_]*P[eta, x5_]*P[eta, x6_] :> {g[x1, x6]*g[x2, x5]*g[x3, x4], g[x1, x5]*g[x2, x6]*g[x3, x4], g[x1, x6]*g[x2, x4]*g[x3, x5],
+                g[x1, x4]*g[x2, x6]*g[x3, x5], g[x1, x5]*g[x2, x4]*g[x3, x6], g[x1, x4]*g[x2, x5]*g[x3, x6], g[x1, x6]*g[x2, x3]*g[x4, x5], g[x1, x3]*g[x2, x6]*g[x4, x5], g[x1, x2]*g[x3, x6]*g[x4, x5], 
+                g[x1, x5]*g[x2, x3]*g[x4, x6], g[x1, x3]*g[x2, x5]*g[x4, x6], g[x1, x2]*g[x3, x5]*g[x4, x6], g[x1, x4]*g[x2, x3]*g[x5, x6], g[x1, x3]*g[x2, x4]*g[x5, x6], g[x1, x2]*g[x3, x4]*g[x5, x6]}};
+            tensorbasis = Flatten[tensorbasis];
+          ];
+          If[n >= 4,
+            tensorbasis = tensorbasis /. {P[eta, x1_]*P[eta, x2_]*P[eta, x3_]*P[eta, x4_] :> {g[x1, x2]*g[x3, x4], g[x1, x3]*g[x2, x4], g[x1, x4]*g[x2, x3]}};
+            tensorbasis = Flatten[tensorbasis];
+          ];
+          tensorbasis = tensorbasis /. {P[eta, x1_]*P[eta, x2_] :> g[x1, x2]};
+          tensorbasis = DeleteCases[tensorbasis /. {P[eta, x1_] -> 0}, 0];
+       
+          If[Length[tensorbasis] != 0,
+            ansatz = Sum[a[i]*tensorbasis[[i]], {i, Length[tensorbasis]}];
+            alist = Union[Cases[ansatz, a[_], All]];
+            rhs = Expand[ansatz*tensorbasis] //. murules /. Replacements /. rul1 /. rul2 /. {BR[x1_] :> x1};
+            rhs = Map[Collect[#, a[_], Factor] &, rhs];
+            rfl = {};
+            Do[Do[
+              cfl = FactorList[Coefficient[rhs[[ii]], alist[[jj]]]];
+              Do[
+                If[cfl[[kk, 1, 0]] == Plus, AppendTo[rfl, cfl[[kk, 1]]]];
+              , {kk, Length[cfl]}];
+            , {jj, Length[alist]}], {ii, Length[rhs]}];
+            rfl = Union[rfl];
+            minusrfl = Expand[-rfl];         (* TO HERE *)
+        
+            rfrulesrev = {};
+            rfrules = {};
+            ccou = 0;
+            Do[
+              curminusrfl = Take[minusrfl, ii - 1];
+              If[FreeQ[curminusrfl, rfl[[ii]]],
+                ++ccou;
+                AppendTo[rfrulesrev, (cc[ccou] -> rfl[[ii]])];
+                rfrules = Flatten[Join[rfrules, {x1_*rfl[[ii]]^x2_ -> x1*cc[ccou]^x2, x1_*rfl[[ii]] -> x1*cc[ccou], x1_*minusrfl[[ii]]^x2_ -> x1*(-1)^x2*cc[ccou]^x2, x1_*minusrfl[[ii]] -> -x1*cc[ccou]}]];
+              ];
+            , {ii, Length[rfl]}];
+        
+            PRINT["    ", rfrulesrev];
+        
+            rhs = rhs //. rfrules;
+            PRINT["    ", "rhs:\n", rhs];
+          ];
+       
+          Do[
+            PRINT["    p-loop ", pebasislist[[u]], " (", u, "/", Length[pebasislist], ")"];
+            lhsp = Apply[Times, Table[P[pebasislist[[u, j]], mu[j]], {j, Length[pebasislist[[u]]]}]];
+            lhsk = Apply[Times, Table[P[kk, mu[j]], {j, n}]];
+            reslhs = Expand[lhsk*lhsp] //. murules /. Replacements /. rul1 /. rul2 /. {BR[x1_] :> x1};
+        
+            If[Length[tensorbasis] === 0,
+              resrhs = 0;
+              PRINT["      No tensor basis -> no solving"];
+         
+              ,
+         
+              lhs = Expand[lhsp*tensorbasis] //. murules /. Replacements /. rul1 /. rul2 /. {BR[x1_] :> x1};
+              lhs = Map[Factor, lhs];
+              lhs = lhs //. rfrules;
+         
+              rfl = {};
+              Do[
+                cfl = FactorList[lhs[[ii]]];
+                Do[
+                  If[cfl[[kk, 1, 0]] == Plus, AppendTo[rfl, cfl[[kk, 1]]]];
+                , {kk, Length[cfl]}];
+              , {ii, Length[lhs]}];
+              rfl = Union[rfl];
+              minusrfl = Expand[-rfl];
+         
+              rfrulesextra = {};
+              rfrulesrevextra = {};
+              ccou = Length[rfrulesrev];
+              Do[
+                curminusrfl = Take[minusrfl, ii - 1];
+                If[FreeQ[curminusrfl, rfl[[ii]]],
+                  ++ccou;
+                  AppendTo[rfrulesrevextra, (cc[ccou] -> rfl[[ii]])];
+           
+                  rfrulesextra = Flatten[Join[rfrulesextra, {x1_*rfl[[ii]]^x2_ -> x1*cc[ccou]^x2, x1_*rfl[[ii]] -> x1*cc[ccou], x1_*minusrfl[[ii]]^x2_ -> x1*(-1)^x2*cc[ccou]^x2, x1_*minusrfl[[ii]] -> -x1*cc[ccou]}]];
+                ];
+              , {ii, Length[rfl]}];
+         
+              lhs = lhs //. rfrulesextra;
+         
+              rfrules = Join[rfrules, rfrulesextra];
+              rfrulesrev = Join[rfrulesrev, rfrulesrevextra];
+         
+              PRINT["      ", rfrulesrev];
+              PRINT["      ", "lhs:\n", lhs];
+         
+              eqs = Table[lhs[[j]] == rhs[[j]], {j, Length[rhs]}];
+              PRINT["      ", "Solving (size=", Length[rhs], ")"];
+              eqssolorig = Solve[eqs, alist];
+              PRINT["      ", "Solving Done"];
+              If[Length[eqssolorig] != 1,
+                Print["Something is wrong with the a-solution: Length[sols] = ", Length[eqssolorig]];
+              ];
+              PRINT["      ", "bytecount = ", ByteCount[eqssolorig]];
+              PRINT["      ", "Factoring sol"];
+              eqssol = Table[0, {Length[alist]}];
+              
+              Do[
+                PRINT["        ", j, "/", Length[alist], "   ", ByteCount[eqssolorig[[1, j, 2]]]];
+                currhs = Factor[eqssolorig[[1, j, 2]]];
+                eqssol[[j]] = (eqssolorig[[1, j, 1]] -> currhs);
+              , {j, Length[alist]}];
+              eqssolorig = 0;
+              PRINT["      ", "Factoring sol done"];
+              PRINT["      ", "bytecount = ", ByteCount[eqssol]];
+              PRINT["      ", "      eqssol = ", eqssol];
+         
+              resrhs = Expand[lhsk*(ansatz /. eqssol)] //. murules /. Replacements /. rul1 /. rul2 /. {BR[x1_] :> x1};
+              PRINT["      ", "Factoring"];
+              resrhs = Factor[resrhs];
+              PRINT["      ", "Factoring Done"];
+              resrhs = resrhs /. rfrulesrev;
+              (* resrhs=Factor[resrhs]; *)
+            ];
+            AppendTo[subresult[[n]], (reslhs -> resrhs)];
+          , {u, Length[pebasislist]}];
+        , {n, nin, 1, -1}];
+      ];
+    , {i, Length[RInternal]}];
+    resultrulespre = Flatten[Reverse[subresult]];
+    PRINT["The last steps"];
+    resultrules = Table[0, {i, Length[resultrulespre]}];
+    Do[
+      currhs = resultrulespre[[i, 2]];
+      While[Not[FreeQ[currhs, DP[___]]],
+        PRINT["  ", i, "/", Length[resultrulespre]];
+        currhs = Expand[currhs] /. resultrulespre;
+        (*currhs=Factor[currhs];*)
+      ];
+      resultrules[[i]] = (resultrulespre[[i, 1]] -> currhs);
+    , {i, Length[resultrulespre]}];
+    PRINT["Done!"];
+    Label[dpendlabel];
+    resultrules
+  ]];
+
+  
 
 End[]
 
