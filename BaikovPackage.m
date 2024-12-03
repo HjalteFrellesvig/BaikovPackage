@@ -1,4 +1,6 @@
-(*This is version 4.03 of BaikovPackage. Last edited on the 19th of November 2024*)
+(* This is version 4.1 of BaikovPackage.    *)
+(* Last edited on the 3rd of December 2024. *)
+(* For documentation, see arXiv:2412.01804. *)
 
 BeginPackage[ "BaikovPackage`"]
 
