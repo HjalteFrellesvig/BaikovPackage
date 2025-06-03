@@ -1,6 +1,8 @@
-(* This is version 4.1 of BaikovPackage.    *)
-(* Last edited on the 3rd of December 2024. *)
-(* For documentation, see arXiv:2412.01804. *)
+(*   This is version 4.2 of BaikovPackage.                                             *)
+(*   Last edited on the 3rd of June 2025.                                              *)
+(*   For documentation, see arXiv:2412.01804:                                          *)
+(*   "The Loop-by-Loop Baikov Representation - Strategies and Implementation"          *)
+(*   Published in: JHEP 04 (2025) 111                                                  *)
 
 BeginPackage[ "BaikovPackage`"]
 
@@ -10,7 +12,9 @@ BaikovLBL::usage = "BaikovLBL[] computes the ingredients for a loop-by-loop Baik
     
 BaikovCombine::usage = "BaikovCombine[comp] computes a Baikov parametrization given ingredients comp.";
 
-MakeExtraDPRules::usage = "MakeExtraDPRules[comp, n] computes rules for extra dot-products up to tensor-degree n, given ingredients comp.";
+MakeExtraDPRules::usage = "MakeExtraDPRules[comp, tau] computes rules for extra dot-products up to tensor-degree tau, given ingredients comp.";
+
+BPKinematics::usage = "BPKinematics[] returns the kinematic variables of the problem.";
   
 SetBPprint::usage = "Sets the value of the debug-variable BPprint.";
 GetBPprint::usage = "Returns the value of the debug-variable BPprint.";
@@ -18,11 +22,13 @@ SetFactorFinal::usage = "Sets the value of the variable BPFactorFinal.";
 GetFactorFinal::usage = "Returns the value of the variable BPFactorFinal.";
 SetDPresult::usage = "Sets the value of the variable BPDPresult.";
 GetDPresult::usage = "Returns the value of the variable BPDPresult.";
+SetExpandAndTest::usage = "Sets the value of the variable BPExpandAndTest.";
+GetExpandAndTest::usage = "Returns the value of the variable BPExpandAndTest.";
 
-Internal::usage = "Internal is the list of loop-momenta. LBL Integrates from left to right.";
+Internal::usage = "Internal is the list of loop-momenta. LBL parametrizes from right to left.";
 External::usage = "External is the list of independent momenta external to the whole integral.";
 Propagators::usage = "Propagators is the list of (genuine) propagators.";
-PropagatorsExtra::usage = "PropagatorsExtra is the list of additional propagators needed for the Baikov Parametrization.";
+PropagatorsExtra::usage = "PropagatorsExtra is the list of additional propagator-type objects needed for the Baikov parametrization.";
 Replacements::usage = "Replacements is the list of kinematic replacement rules.";
   
 x::usage = "x is a variable reserved for Baikov variables.";   
@@ -42,10 +48,6 @@ SetBPprint = Function[{y},
   ]];
     
 GetBPprint = Function[{}, BPprint];
-  
-PRINT[y___] := If[BPprint, Print[y]];
-  
-wrongstring = "\nLikely cause is a wrong or incomplete choice of propagators.";
   
   
 BPFactorFinal = True;
@@ -67,6 +69,23 @@ SetDPresult = Function[{y},
     
 GetDPresult = Function[{}, BPDPresult];
 
+
+BPExpandAndTest = True;
+  
+SetExpandAndTest = Function[{y},
+  If[y===True||y===False,
+    BPExpandAndTest = y;
+  ]];
+    
+GetExpandAndTest = Function[{}, BPExpandAndTest];
+
+
+
+PRINT[y___] := If[BPprint, Print[y]];
+  
+wrongstring = "\nLikely cause is a wrong or incomplete choice of propagators.";
+
+
   
 MakeDPRules = Function[{ks, ps},
   Module[{dprules1, dprules2},
@@ -76,13 +95,18 @@ MakeDPRules = Function[{ks, ps},
       , {j, i, Length[ks]}], {i, 1, Length[ks]}];
   dprules2 = Flatten[Table[Table[ks[[i]]*ps[[j]] -> DP[ks[[i]], ps[[j]]], {j, Length[ps]}], {i, Length[ks]}]];
   Join[dprules1, dprules2]]];
+  
+
+BPKinematics = Function[{}, Complement[ Variables[ Join[Map[#[[2]]&, Replacements], Propagators, PropagatorsExtra] ], Union[Internal, External]]];
     
     
     
     
     
 BaikovLBL = Function[{},
-  Module[{AllPropagators, PP, RInternal, LL, dprules, bigdplist, whogoeswhere, useddplist, bigjacdet, bigdetlist, bigpowlist, prefaclist, bigxrules, bigelist, result, props, jlist, kk, qq, gg, ktoq, EE, curdplist, propsexpanded, linear1, zpos, gsol, zpos2, qtok, linear2, xlhs, xeqs, toxrules, solveddps, linear3, curfacpows, curfac, cc1, cc2, cc3, cc4, jacmat1, jacmat2, grammat, baikmat, linear4, gramdet, baikdet, jacdet1, jacdet2, gp1, gp2, bigxrulesfinal, bfrfrhs, endlabel, fromxrules, DPxlist, qqofk, DPxrhs, DPxdpl, DPxsol, DPxret},
+  Module[{AllPropagators, PP, RInternal, LL, dprules, bigdplist, whogoeswhere, useddplist, bigjacdet, bigdetlist, bigpowlist, prefaclist, bigxrules, bigelist, result, props, jlist, kk, qq, gg, ktoq, EE, curdplist, propsexpanded, linear1, zpos, gsol, zpos2, qtok, linear2, xlhs, xeqs, toxrules, solveddps, linear3, curfacpows, curfac, cc1, cc2, cc3, cc4, jacmat1, jacmat2, grammat, baikmat, linear4, gramdet, baikdet, jacdet1, jacdet2, gp1, gp2, bigxrulesfinal, bfrfrhs, endlabel, fromxrules, DPxlist, qqofk, DPxrhs, DPxdpl, DPxsol, DPxret, ExpandAndTestLoc},
+  
+  ExpandAndTestLoc = BPExpandAndTest;
 
   result = 0;
   LL = Length[Internal];
@@ -225,7 +249,12 @@ BaikovLBL = Function[{},
      
     jacmat1 = Table[Table[D[xlhs[[i]], solveddps[[j]]], {j, Length[solveddps]}], {i, Length[xlhs]}];
     jacmat2 = Table[Table[D[baikmat[[1, i]], solveddps[[j]]], {j, Length[solveddps]}], {i, Length[baikmat[[1]]]}];
-    baikmat = Expand[baikmat /. toxrules];
+    
+    baikmat = baikmat /. toxrules;
+      
+    grammat = Factor[grammat];
+    baikmat = Factor[baikmat];
+    (* NEW!!!!!!!! *)
      
     PRINT["grammat = ", grammat];
     PRINT["baikmat = ", baikmat];
@@ -237,21 +266,27 @@ BaikovLBL = Function[{},
       gramdet = Det[grammat]];
     baikdet = Det[baikmat];
     
-    gramdet = Expand[gramdet];
-    baikdet = Expand[baikdet];
+    If[ExpandAndTestLoc,
+      gramdet = Expand[gramdet];
+      baikdet = Expand[baikdet];
+    ];
     
     bigdetlist = Join[{gramdet, baikdet}, bigdetlist];
      
-    bigdetlist = Map[Expand, bigdetlist //. toxrules];
-    If[Apply[And, Map[FreeQ[bigdetlist, #] &, curdplist]],
-      PRINT["all is OK for ", kk],
+    bigdetlist = bigdetlist //. toxrules;
+   
+    If[ExpandAndTestLoc,
+      bigdetlist = Map[Expand, bigdetlist];
+      If[Apply[And, Map[FreeQ[bigdetlist, #] &, curdplist]],
+        PRINT["all is OK for ", kk],
       
-      Print["all is NOT OK for ", kk, ".", wrongstring];
-      Print["curdplist = ", curdplist];
-      Print["bigdetlist = ", bigdetlist];
-      Print["toxrules = ", toxrules];
-      Print["props = ", props, "   ", "curext = ", linear3];
-      Goto[endlabel];
+        Print["all is NOT OK for ", kk, ".", wrongstring];
+        Print["curdplist = ", curdplist];
+        Print["bigdetlist = ", bigdetlist];
+        Print["toxrules = ", toxrules];
+        Print["props = ", props, "   ", "curext = ", linear3];
+        Goto[endlabel];
+      ];
     ];
      
     gp1 = (EE - d + 1)/2;
@@ -304,7 +339,9 @@ BaikovLBL = Function[{},
     DPxret = {DPxlist};
   ];
     
-  bigdetlist = Map[Expand, bigdetlist];
+  If[ExpandAndTestLoc,
+    bigdetlist = Map[Expand, bigdetlist];
+  ];
   If[BPFactorFinal, bigdetlist = Factor[bigdetlist]];
   PRINT["bigdetlist = ", bigdetlist];
     
@@ -393,6 +430,8 @@ BaikovStandard = Function[{},
   result]];
 
   
+  
+  
 
 BaikovCombine = Function[{xx}, Module[{res},
   res = Apply[Times, xx[[3]]];
@@ -400,6 +439,7 @@ BaikovCombine = Function[{xx}, Module[{res},
     res *= xx[[1, i]]^xx[[2, i]];
     , {i, Length[xx[[1]]]}];
   res]];
+  
   
   
   
