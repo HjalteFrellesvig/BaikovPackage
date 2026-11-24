@@ -1,5 +1,5 @@
-(*   This is version 4.2 of BaikovPackage.                                             *)
-(*   Last edited on the 3rd of June 2025.                                              *)
+(*   This is version 4.4 of BaikovPackage.                                             *)
+(*   Last edited on the 24th of November 2026.                                         *)
 (*   For documentation, see arXiv:2412.01804:                                          *)
 (*   "The Loop-by-Loop Baikov Representation - Strategies and Implementation"          *)
 (*   Published in: JHEP 04 (2025) 111                                                  *)
@@ -7,14 +7,18 @@
 BeginPackage[ "BaikovPackage`"]
 
 BaikovStandard::usage = "BaikovStandard[] computes the ingredients for a standard Baikov parametrization.";
+BaikovStandardArgs::usage = "BaikovStandardArgs computes the ingredients for a standard Baikov parametrization (with explicit arguments).";
 
 BaikovLBL::usage = "BaikovLBL[] computes the ingredients for a loop-by-loop Baikov parametrization.";
+BaikovLBLArgs::usage = "BaikovLBLArgs computes the ingredients for a loop-by-loop Baikov parametrization (with explicit arguments).";
     
 BaikovCombine::usage = "BaikovCombine[comp] computes a Baikov parametrization given ingredients comp.";
 
 MakeExtraDPRules::usage = "MakeExtraDPRules[comp, tau] computes rules for extra dot-products up to tensor-degree tau, given ingredients comp.";
+MakeExtraDPRulesArgs::usage = "MakeExtraDPRules[comp, tau, args] computes rules for extra dot-products up to tensor-degree tau, given ingredients comp, with explicit arguments args.";
 
 BPKinematics::usage = "BPKinematics[] returns the kinematic variables of the problem.";
+BPKinematicsArgs::usage = "BPKinematics returns the kinematic variables of the problem (with explicit arguments).";
   
 SetBPprint::usage = "Sets the value of the debug-variable BPprint.";
 GetBPprint::usage = "Returns the value of the debug-variable BPprint.";
@@ -24,6 +28,8 @@ SetDPresult::usage = "Sets the value of the variable BPDPresult.";
 GetDPresult::usage = "Returns the value of the variable BPDPresult.";
 SetExpandAndTest::usage = "Sets the value of the variable BPExpandAndTest.";
 GetExpandAndTest::usage = "Returns the value of the variable BPExpandAndTest.";
+SetMinkowskian::usage = "Sets the value of the variable BPMinkowskian.";
+GetMinkowskian::usage = "Returns the value of the variable BPMinkowskian.";
 
 Internal::usage = "Internal is the list of loop-momenta. LBL parametrizes from right to left.";
 External::usage = "External is the list of independent momenta external to the whole integral.";
@@ -80,8 +86,26 @@ SetExpandAndTest = Function[{y},
 GetExpandAndTest = Function[{}, BPExpandAndTest];
 
 
+BPMinkowskian = False;   (* For backwards compatibility *)
+  
+SetMinkowskian = Function[{y},
+  If[y===True||y===False,
+    BPMinkowskian = y;
+  ]];
+    
+GetMinkowskian = Function[{}, BPMinkowskian];
+
+
 
 PRINT[y___] := If[BPprint, Print[y]];
+
+PRINT2 = Function[{x1,x2}, Module[{bc},
+  If[BPprint,
+    bc = ByteCount[x2];
+    If[bc < 100000,
+      Print[x1,x2],
+      Print[x1,"[ByteCount = "<>ToString[bc]<>"]"]];
+  ]]];
   
 wrongstring = "\nLikely cause is a wrong or incomplete choice of propagators.";
 
@@ -97,23 +121,45 @@ MakeDPRules = Function[{ks, ps},
   Join[dprules1, dprules2]]];
   
 
-BPKinematics = Function[{}, Complement[ Variables[ Join[Map[#[[2]]&, Replacements], Propagators, PropagatorsExtra] ], Union[Internal, External]]];
-    
-    
-    
-    
-    
-BaikovLBL = Function[{},
-  Module[{AllPropagators, PP, RInternal, LL, dprules, bigdplist, whogoeswhere, useddplist, bigjacdet, bigdetlist, bigpowlist, prefaclist, bigxrules, bigelist, result, props, jlist, kk, qq, gg, ktoq, EE, curdplist, propsexpanded, linear1, zpos, gsol, zpos2, qtok, linear2, xlhs, xeqs, toxrules, solveddps, linear3, curfacpows, curfac, cc1, cc2, cc3, cc4, jacmat1, jacmat2, grammat, baikmat, linear4, gramdet, baikdet, jacdet1, jacdet2, gp1, gp2, bigxrulesfinal, bfrfrhs, endlabel, fromxrules, DPxlist, qqofk, DPxrhs, DPxdpl, DPxsol, DPxret, ExpandAndTestLoc},
   
-  ExpandAndTestLoc = BPExpandAndTest;
+  
+  
+BPKinematicsArgsFixed = Function[{InternalArg, ExternalArg, PropagatorsArg, PropagatorsExtraArg, ReplacementsArg},
+  Complement[ Variables[ Join[Map[#[[2]]&, ReplacementsArg], PropagatorsArg, PropagatorsExtraArg] ], Union[InternalArg, ExternalArg]]];
 
+
+BPKinematics = Function[{}, BPKinematicsArgsFixed[Internal, External, Propagators, PropagatorsExtra, Replacements]];
+
+
+BPKinematicsArgs[args___] := Module[{inp, res},
+  inp = {args};
+  res = 0;
+  If[Length[inp] == 1 && inp[[1, 0]] === List && Length[inp[[1]]] >= 5,
+    res = BPKinematicsArgsFixed[inp[[1, 1]], inp[[1, 2]], inp[[1, 3]], inp[[1, 4]], inp[[1, 5]]]
+    ,
+    If[Length[inp] == 5,
+      res = BPKinematicsArgsFixed[inp[[1]], inp[[2]], inp[[3]], inp[[4]], inp[[5]]];
+      ,
+      Print["Wrong input format to BPKinematicsArgs."];
+      Print["We need either five arguments or a list with at least five arguments."];
+    ];
+  res]];
+    
+    
+    
+    
+    
+BaikovLBLArgsFixed = Function[{InternalArg, ExternalArg, PropagatorsArg, PropagatorsExtraArg, ReplacementsArg}, 
+  Module[{AllPropagators, PP, RInternal, LL, dprules, bigdplist, whogoeswhere, useddplist, bigjacdet, bigdetlist, bigpowlist, prefaclist, bigxrules, bigelist, result, props, jlist, kk, qq, gg, ktoq, EE, curdplist, propsexpanded, linear1, zpos, gsol, zpos2, qtok, linear2, xlhs, xeqs, toxrules, solveddps, linear3, curfacpows, curfac, cc1, cc2, cc3, cc4, jacmat1, jacmat2, grammat, baikmat, linear4, gramdet, baikdet, jacdet1, jacdet2, gp1, gp2, bigxrulesfinal, bfrfrhs, endlabel, fromxrules, DPxlist, qqofk, DPxrhs, DPxdpl, DPxsol, DPxret, FactorInnerLoc, quadratic1, fq, curprefac},
+
+  FactorInnerLoc = True;
+  
   result = 0;
-  LL = Length[Internal];
-  RInternal = Reverse[Internal];
-  AllPropagators = Join[Propagators, PropagatorsExtra];
+  LL = Length[InternalArg];
+  RInternal = Reverse[InternalArg];
+  AllPropagators = Join[PropagatorsArg, PropagatorsExtraArg];
   PP = Length[AllPropagators];
-  dprules = MakeDPRules[Union[Internal], External];
+  dprules = MakeDPRules[Union[InternalArg], ExternalArg];
   bigdplist = Map[#[[2]] &, dprules];
   PRINT["dprules = ", dprules];
   PRINT["bigdplist = ", bigdplist];
@@ -157,7 +203,7 @@ BaikovLBL = Function[{},
     curdplist = Complement[curdplist, useddplist];
     PRINT["curdplist = ", curdplist];
      
-    xlhs = Expand[Expand[props] /. dprules /. Replacements];
+    xlhs = Expand[Expand[props] /. dprules /. ReplacementsArg];
     xeqs = Table[xlhs[[i]] == x[jlist[[i]]], {i, Length[xlhs]}];
     PRINT["xeqs = ", xeqs];
     toxrules = Quiet[Solve[xeqs, curdplist]];
@@ -169,7 +215,7 @@ BaikovLBL = Function[{},
     ];
     toxrules = toxrules[[1]];
     toxrules = Union[toxrules];
-    PRINT["toxsol = ", toxrules];
+    PRINT2["toxsol = ", toxrules];
     If[Length[toxrules] != EE + 1,
       Print["ERROR! Discrepency in x-solution!", wrongstring];
       Goto[endlabel];
@@ -178,7 +224,7 @@ BaikovLBL = Function[{},
     PRINT["solveddps = ", solveddps];
      
     ktoq = {kk -> qq};
-    propsexpanded = Expand[Expand[props /. ktoq] /. Replacements];
+    propsexpanded = Expand[Expand[props /. ktoq] /. ReplacementsArg];
      
     linear1 = Table[Expand[Coefficient[propsexpanded[[i]], qq, 1]], {i, Length[propsexpanded]}];
     PRINT["linear1 = ", linear1];
@@ -190,7 +236,7 @@ BaikovLBL = Function[{},
     ];
     If[Length[zpos] == 0,
       ktoq = {kk -> qq + gg};
-      propsexpanded = Expand[Expand[props /. ktoq] /. Replacements];
+      propsexpanded = Expand[Expand[props /. ktoq] /. ReplacementsArg];
       linear1 = Table[Expand[Coefficient[propsexpanded[[i]], qq, 1]], {i, Length[propsexpanded]}];
       PRINT["linear1 = ", linear1];
       quadratic1 = Table[Expand[Coefficient[propsexpanded[[i]], qq, 2]], {i, Length[propsexpanded]}];
@@ -209,8 +255,8 @@ BaikovLBL = Function[{},
       ];
       gsol = Solve[linear1[[fq]] == 0, gg][[1]];
       ktoq = ktoq /. gsol;
-      propsexpanded = Expand[Expand[propsexpanded /. gsol] /. Replacements];
-      linear1 = Expand[Expand[linear1 /. gsol] /. Replacements];
+      propsexpanded = Expand[Expand[propsexpanded /. gsol] /. ReplacementsArg];
+      linear1 = Expand[Expand[linear1 /. gsol] /. ReplacementsArg];
       PRINT["linear1 = ", linear1];
       zpos2 = Position[linear1, 0, {1}];
       If[Length[zpos2] != 1,
@@ -227,7 +273,7 @@ BaikovLBL = Function[{},
       curfac = 1;
       curfacpows = FactorList[cc1*cc2*linear2[[j]]];
       Do[
-        If[Intersection[Variables[cc3*cc4*curfacpows[[k, 1]]], Join[Internal, External]] =!= {},
+        If[Intersection[Variables[cc3*cc4*curfacpows[[k, 1]]], Join[InternalArg, ExternalArg]] =!= {},
           curfac *= (curfacpows[[k, 1]]^curfacpows[[k, 2]]);
         ];
       , {k, Length[curfacpows]}];
@@ -235,7 +281,7 @@ BaikovLBL = Function[{},
     , {j, Length[linear3]}];
     PRINT["linear3 = ", linear3];
      
-    grammat = Expand[KroneckerProduct[linear3, linear3]] /. dprules /. Replacements;
+    grammat = Expand[KroneckerProduct[linear3, linear3]] /. dprules /. ReplacementsArg;
     
     qqofk = qq/.qtok;
     
@@ -245,28 +291,32 @@ BaikovLBL = Function[{},
       ,{j,Length[linear3]}];
      
     linear4 = Prepend[linear3, qqofk];
-    baikmat = Expand[Expand[KroneckerProduct[linear4, linear4]] /. dprules /. Replacements];
+    baikmat = Expand[Expand[KroneckerProduct[linear4, linear4]] /. dprules /. ReplacementsArg];
      
     jacmat1 = Table[Table[D[xlhs[[i]], solveddps[[j]]], {j, Length[solveddps]}], {i, Length[xlhs]}];
     jacmat2 = Table[Table[D[baikmat[[1, i]], solveddps[[j]]], {j, Length[solveddps]}], {i, Length[baikmat[[1]]]}];
     
     baikmat = baikmat /. toxrules;
-      
-    grammat = Factor[grammat];
-    baikmat = Factor[baikmat];
-    (* NEW!!!!!!!! *)
+    
+    If[FactorInnerLoc,
+      PRINT["factoring..."];
+      grammat = Factor[grammat];
+      baikmat = Factor[baikmat];
+      jacmat1 = Factor[jacmat1];
+      jacmat2 = Factor[jacmat2];
+    ];
      
-    PRINT["grammat = ", grammat];
-    PRINT["baikmat = ", baikmat];
-    PRINT["jacmat1 = ", jacmat1];
-    PRINT["jacmat2 = ", jacmat2];
+    PRINT2["grammat = ", grammat];
+    PRINT2["baikmat = ", baikmat];
+    PRINT2["jacmat1 = ", jacmat1];
+    PRINT2["jacmat2 = ", jacmat2];
      
     If[grammat === {},
       gramdet = 1,
       gramdet = Det[grammat]];
     baikdet = Det[baikmat];
     
-    If[ExpandAndTestLoc,
+    If[BPExpandAndTest,
       gramdet = Expand[gramdet];
       baikdet = Expand[baikdet];
     ];
@@ -275,7 +325,7 @@ BaikovLBL = Function[{},
      
     bigdetlist = bigdetlist //. toxrules;
    
-    If[ExpandAndTestLoc,
+    If[BPExpandAndTest,
       bigdetlist = Map[Expand, bigdetlist];
       If[Apply[And, Map[FreeQ[bigdetlist, #] &, curdplist]],
         PRINT["all is OK for ", kk],
@@ -300,10 +350,15 @@ BaikovLBL = Function[{},
       jacdet1 = Det[jacmat1];
       jacdet2 = Det[jacmat2];
     ];
-    PRINT["jacdets = ", jacdet1, "  ", jacdet2];
+    PRINT["jacdet1 = ", jacdet1];
+    PRINT["jacdet2 = ", jacdet2];
+    
+    curprefac = Pi^(-EE/2)/Gamma[(d - EE)/2];
+    If[Not[BPMinkowskian], curprefac = -I*curprefac];
      
-    prefaclist = PrependTo[prefaclist, (-I*Pi^(-EE/2)/Gamma[(d - EE)/2])];
+    prefaclist = PrependTo[prefaclist, curprefac];
     bigjacdet = bigjacdet*jacdet2/jacdet1;
+    bigjacdet = Factor[bigjacdet];
      
     bigxrules = Join[bigxrules, toxrules];
     PrependTo[bigelist, linear3];
@@ -314,14 +369,14 @@ BaikovLBL = Function[{},
   If[Length[DPxlist] != Length[AllPropagators],
     Print["DPxlist has the wrong length. This is too strange.\nDPxlist = ", DPxlist];
     Goto[endlabel];
-  ]
+  ];
     
   PRINT["\n  finally"];
   
   PRINT["DPxlist = ", DPxlist];
   
   If[BPDPresult,
-    DPxrhs = Expand[Expand[DPxlist/.{DPx:>Times}]/.dprules/.Replacements];
+    DPxrhs = Expand[Expand[DPxlist/.{DPx:>Times}]/.dprules/.ReplacementsArg];
     DPxdpl = Union[Cases[DPxrhs, DP[___], All]];
     DPxsol = Quiet[Solve[Table[DPxlist[[i]] == DPxrhs[[i]], {i,Length[DPxlist]}], DPxdpl]];
     If[DPxsol==={},
@@ -329,7 +384,7 @@ BaikovLBL = Function[{},
       Goto[endlabel];
     ];
     DPxsol = DPxsol[[1]];
-    fromxrules = Table[x[i] -> Expand[Expand[AllPropagators[[i]]]/.dprules/.Replacements/.DPxsol], {i,Length[AllPropagators]}];
+    fromxrules = Table[x[i] -> Expand[Expand[AllPropagators[[i]]]/.dprules/.ReplacementsArg/.DPxsol], {i,Length[AllPropagators]}];
     bigdetlist = bigdetlist/.fromxrules;
   ];
   
@@ -339,11 +394,11 @@ BaikovLBL = Function[{},
     DPxret = {DPxlist};
   ];
     
-  If[ExpandAndTestLoc,
+  If[BPExpandAndTest,
     bigdetlist = Map[Expand, bigdetlist];
   ];
   If[BPFactorFinal, bigdetlist = Factor[bigdetlist]];
-  PRINT["bigdetlist = ", bigdetlist];
+  PRINT2["bigdetlist = ", bigdetlist];
     
   AppendTo[prefaclist, bigjacdet];
 
@@ -352,26 +407,47 @@ BaikovLBL = Function[{},
   If[BPDPresult, bfrfrhs = Expand[bfrfrhs //. fromxrules]];
   bigxrulesfinal = Table[bigxrules[[i, 1]] -> bfrfrhs[[i]], {i, Length[bfrfrhs]}];
 
-  PRINT["bigxrulesfinal = ", bigxrulesfinal];
+  PRINT2["bigxrulesfinal = ", bigxrulesfinal];
+  PRINT["DONE!"];
     
   result = {bigdetlist, bigpowlist, prefaclist, {dprules, bigxrulesfinal, bigelist, DPxret}};
   Label[endlabel];
   result]];
+
+  
+
+BaikovLBL = Function[{}, BaikovLBLArgsFixed[Internal, External, Propagators, PropagatorsExtra, Replacements]];
+
+
+
+BaikovLBLArgs[args___] := Module[{inp, res},
+  inp = {args};
+  res = 0;
+  If[Length[inp] == 1 && inp[[1, 0]] === List && Length[inp[[1]]] >= 5,
+    res = BaikovLBLArgsFixed[inp[[1, 1]], inp[[1, 2]], inp[[1, 3]], inp[[1, 4]], inp[[1, 5]]]
+    ,
+    If[Length[inp] == 5,
+      res = BaikovLBLArgsFixed[inp[[1]], inp[[2]], inp[[3]], inp[[4]], inp[[5]]];
+      ,
+      Print["Wrong input format to BaikovLBLArgs."];
+      Print["We need either five arguments or a list with at least five arguments."];
+    ];
+  res]];
 
 
   
 
 
 
-BaikovStandard = Function[{},
-  Module[{RInternal, LL, EE, DPrules, AllPropagators, PP, PPexp, AllPropagatorsExpanded, DPRHS, ijacdet, ToBaik, curE, gram1, gp1, curexte, gram2, gp2, remdps, bigdetlist, bigpowlist, prefaclist, Elists, result, endlabel, fromxrules, DPxret},
+BaikovStandardArgsFixed = Function[{InternalArg, ExternalArg, PropagatorsArg, PropagatorsExtraArg, ReplacementsArg}, 
+  Module[{RInternal, LL, EE, DPrules, AllPropagators, PP, PPexp, AllPropagatorsExpanded, DPRHS, ijacdet, ToBaik, curE, gram1, gp1, curexte, gram2, gp2, remdps, bigdetlist, bigpowlist, prefaclist, Elists, result, endlabel, fromxrules, DPxret, firstprefac},
 
   result = 0;
-  RInternal = Reverse[Internal];
+  RInternal = Reverse[InternalArg];
   LL = Length[RInternal];
-  EE = Length[External];
-  DPrules = MakeDPRules[Internal, External];
-  AllPropagators = Join[Propagators, PropagatorsExtra];
+  EE = Length[ExternalArg];
+  DPrules = MakeDPRules[InternalArg, ExternalArg];
+  AllPropagators = Join[PropagatorsArg, PropagatorsExtraArg];
   PP = Length[AllPropagators];
   PPexp = (LL*(LL + 1)/2 + LL*EE);
   If[PP != PPexp,
@@ -379,7 +455,7 @@ BaikovStandard = Function[{},
     Goto[endlabel];
   ];
     
-  AllPropagatorsExpanded = Expand[Expand[AllPropagators] //. DPrules /. Replacements];
+  AllPropagatorsExpanded = Expand[Expand[AllPropagators] //. DPrules /. ReplacementsArg];
   DPRHS = Union[Cases[AllPropagatorsExpanded, DP[___], All]];
   If[Length[DPRHS] != PP,
     Print["Unmatched dotproducts:", AllPropagatorsExpanded, wrongstring];
@@ -392,18 +468,18 @@ BaikovStandard = Function[{},
   ];
   ToBaik = Solve[Table[AllPropagatorsExpanded[[i]] == x[i], {i, Length[AllPropagatorsExpanded]}], DPRHS][[1]];
     
-  curE = Length[External];
+  curE = Length[ExternalArg];
   If[curE == 0,
     gram1 = 1, 
-    gram1 = Det[KroneckerProduct[External, External] /. DPrules /. Replacements /. ToBaik];
+    gram1 = Det[KroneckerProduct[ExternalArg, ExternalArg] /. DPrules /. ReplacementsArg /. ToBaik];
   ];
   gp1 = (curE - d + 1)/2;
-  curexte = Join[Internal, External];
-  gram2 = Det[KroneckerProduct[curexte, curexte] /. DPrules /. Replacements /. ToBaik];
+  curexte = Join[InternalArg, ExternalArg];
+  gram2 = Det[KroneckerProduct[curexte, curexte] /. DPrules /. ReplacementsArg /. ToBaik];
   gp2 = (d - curE - LL - 1)/2;
   remdps = Union[Cases[{gram1, gram2}, DP[___], All]];
   If[remdps =!= {},
-    Print["Oh No! The ", RInternal[[i]], "-loop has unmatched dot products: ", remdps, wrongstring];
+    Print["Oh No! There are unmatched dot products: ", remdps, wrongstring];
     Goto[endlabel];
   ];
   bigdetlist = {gram1, gram2};
@@ -411,9 +487,11 @@ BaikovStandard = Function[{},
   If[BPDPresult,
     ijacdet = 1;
   ];
-  prefaclist = {((-I)^LL*Pi^((LL - PPexp)/2)/Product[Gamma[(d + 1 - EE - l)/2], {l, 1, LL}]), 1/ijacdet};
-  Elists = {External};
+  firstprefac = Pi^((LL - PPexp)/2)/Product[Gamma[(d + 1 - EE - l)/2], {l, 1, LL}];
+  If[Not[BPMinkowskian], firstprefac = firstprefac*(-I)^LL];
+  prefaclist = {firstprefac, 1/ijacdet};
   
+  Elists = {ExternalArg};
   If[BPDPresult,
     fromxrules = Table[x[i] -> AllPropagatorsExpanded[[i]]/.{DP:>DPx} ,{i,PP}];
     bigdetlist = bigdetlist/.fromxrules;
@@ -428,6 +506,26 @@ BaikovStandard = Function[{},
   result = {bigdetlist, bigpowlist, prefaclist, {DPrules, ToBaik, Reverse[Elists], DPxret}};
   Label[endlabel];
   result]];
+  
+  
+  
+BaikovStandard = Function[{}, 
+   BaikovStandardArgsFixed[Internal, External, Propagators, PropagatorsExtra, Replacements]];
+
+
+
+BaikovStandandArgs[args___] := Module[{inp, res},
+   inp = {args};
+   res = 0;
+   If[Length[inp] == 1 && inp[[1, 0]] === List && Length[inp[[1]]] >= 5,
+    res = BaikovStandardArgsFixed[inp[[1, 1]], inp[[1, 2]], inp[[1, 3]], inp[[1, 4]], inp[[1, 5]]]
+    ,
+    If[Length[inp] == 5,
+     res = BaikovStandardArgsFixed[inp[[1]], inp[[2]], inp[[3]], inp[[4]], inp[[5]]];
+     ,
+     Print["Wrong input format to BaikovStandardArgs."];
+     Print["We need either five arguments or a list with at least five arguments."]];
+    res]];
 
   
   
@@ -444,16 +542,21 @@ BaikovCombine = Function[{xx}, Module[{res},
   
   
 
-MakeExtraDPRules = Function[{inm, nin},
+MakeExtraDPRulesArgsFixed = Function[{inm, nin, args},
   Module[{resultrules, subresult, dpendlabel, murules, rul1, rul2, alldps, useddps, RInternal, kk, newcandi, pe1, pi1, pi2, allnewcandi, eta, temprules, tensorbasis, pebasis, pebasislist, peb, cfl, ansatz, alist, rhs, lhs,
-      eqs, rfl, minusrfl, curminusrfl, rfrules, rfrulesextra, eqssol, eqssolorig, resrhs, reslhs, lhsp, lhsk, rfrulesrev, rfrulesrevextra, ccou, currhs, resultrulespre (*,P,g,mu,a,BR,cc*) },
+      eqs, rfl, minusrfl, curminusrfl, rfrules, rfrulesextra, eqssol, eqssolorig, resrhs, reslhs, lhsp, lhsk, rfrulesrev, rfrulesrevextra, ccou, currhs, resultrulespre, P, g, mu, a, BR, cc, InternalArg, ExternalArg, ReplacementsArg},
+      
+    InternalArg = args[[1]];
+    ExternalArg = args[[2]];
+    (* The propagators are not needed *)
+    ReplacementsArg = args[[5]];
       
     resultrules = {};
     If[Not[IntegerQ[nin]] || nin < 0,
-      Print["N has to be a positive integer"];
+      Print["tau has to be a positive integer"];
       Goto[dpendlabel]];
     If[nin >= 8,
-      Print["Not implemented for N>=8"];
+      Print["Not implemented for tau>=8"];
       Goto[dpendlabel]];
     If[nin == 0,
       Goto[dpendlabel]];
@@ -466,7 +569,7 @@ MakeExtraDPRules = Function[{inm, nin},
     rul2 = inm[[4, 2]];
     alldps = Table[rul1[[i, 2]], {i, Length[rul1]}];
     useddps = Table[rul2[[i, 1]], {i, Length[rul2]}];
-    RInternal = Reverse[Internal];
+    RInternal = Reverse[InternalArg];
     allnewcandi = {};
     temprules = {};
     
@@ -474,12 +577,12 @@ MakeExtraDPRules = Function[{inm, nin},
     Do[
       kk = RInternal[[i]];
       PRINT["k-loop: ", kk, " (", i, "/", Length[RInternal], ")"];
-      newcandi = Join[Table[kk*RInternal[[j]], {j, i, Length[RInternal]}], Table[kk*External[[j]], {j, 1, Length[External]}]] /. rul1;
+      newcandi = Join[Table[kk*RInternal[[j]], {j, i, Length[RInternal]}], Table[kk*ExternalArg[[j]], {j, 1, Length[ExternalArg]}]] /. rul1;
       newcandi = Complement[newcandi, useddps];
       allnewcandi = Join[allnewcandi, newcandi];
       If[Length[newcandi] > 0,
         pe1 = newcandi /. {DP[kk, x1_] :> x1, DP[x1_, kk] :> x1};
-        pi1 = inm[[4, 3, Length[Internal] + 1 - i]];
+        pi1 = inm[[4, 3, Length[RInternal] + 1 - i]];
         pi2 = Append[Map[P[#, mu[0]] &, pi1], P[eta, mu[0]]] //. {P[x1_ + x2_, x0_] :> P[x1, x0] + P[x2, x0]};
       
         (*this is the n-loop*)
@@ -518,7 +621,7 @@ MakeExtraDPRules = Function[{inm, nin},
           If[Length[tensorbasis] != 0,
             ansatz = Sum[a[i]*tensorbasis[[i]], {i, Length[tensorbasis]}];
             alist = Union[Cases[ansatz, a[_], All]];
-            rhs = Expand[ansatz*tensorbasis] //. murules /. Replacements /. rul1 /. rul2 /. {BR[x1_] :> x1};
+            rhs = Expand[ansatz*tensorbasis] //. murules /. ReplacementsArg /. rul1 /. rul2 /. {BR[x1_] :> x1};
             rhs = Map[Collect[#, a[_], Factor] &, rhs];
             rfl = {};
             Do[Do[
@@ -552,7 +655,7 @@ MakeExtraDPRules = Function[{inm, nin},
             PRINT["    p-loop ", pebasislist[[u]], " (", u, "/", Length[pebasislist], ")"];
             lhsp = Apply[Times, Table[P[pebasislist[[u, j]], mu[j]], {j, Length[pebasislist[[u]]]}]];
             lhsk = Apply[Times, Table[P[kk, mu[j]], {j, n}]];
-            reslhs = Expand[lhsk*lhsp] //. murules /. Replacements /. rul1 /. rul2 /. {BR[x1_] :> x1};
+            reslhs = Expand[lhsk*lhsp] //. murules /. ReplacementsArg /. rul1 /. rul2 /. {BR[x1_] :> x1};
         
             If[Length[tensorbasis] === 0,
               resrhs = 0;
@@ -560,7 +663,7 @@ MakeExtraDPRules = Function[{inm, nin},
          
               ,
          
-              lhs = Expand[lhsp*tensorbasis] //. murules /. Replacements /. rul1 /. rul2 /. {BR[x1_] :> x1};
+              lhs = Expand[lhsp*tensorbasis] //. murules /. ReplacementsArg /. rul1 /. rul2 /. {BR[x1_] :> x1};
               lhs = Map[Factor, lhs];
               lhs = lhs //. rfrules;
          
@@ -616,7 +719,7 @@ MakeExtraDPRules = Function[{inm, nin},
               PRINT["      ", "bytecount = ", ByteCount[eqssol]];
               PRINT["      ", "      eqssol = ", eqssol];
          
-              resrhs = Expand[lhsk*(ansatz /. eqssol)] //. murules /. Replacements /. rul1 /. rul2 /. {BR[x1_] :> x1};
+              resrhs = Expand[lhsk*(ansatz /. eqssol)] //. murules /. ReplacementsArg /. rul1 /. rul2 /. {BR[x1_] :> x1};
               PRINT["      ", "Factoring"];
               resrhs = Factor[resrhs];
               PRINT["      ", "Factoring Done"];
@@ -645,6 +748,21 @@ MakeExtraDPRules = Function[{inm, nin},
     resultrules
   ]];
 
+  
+  
+MakeExtraDPRules = Function[{inm, nin}, 
+   MakeExtraDPRulesArgsFixed[inm, nin, {Internal, External, Propagators, PropagatorsExtra, Replacements}]];
+
+
+
+MakeExtraDPRulesArgs = Function[{inm, nin, args}, Module[{res},
+  res = 0;
+  If[args[[0]] === List && Length[args] >= 5,
+    res = MakeExtraDPRulesArgsFixed[inm, nin, args];
+    ,
+    Print["Wrong input format to MakeExtraDPRulesArgs."];
+    Print["\"args\" needs to be a list with at least five arguments."]];
+  res]];
   
 
 End[]
